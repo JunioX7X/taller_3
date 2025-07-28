@@ -1,190 +1,160 @@
-Parte 1: Implementación en Ensamblador NASM para Arquitectura x86-64
-a. Descomposición Semántica del Código Ensamblador
+# 📘 Taller 3 — Respuestas Técnicas
 
+---
 
-bits 64
-default rel
-segment .data
-    msg db "hola mundo!", 0xd, 0xa, 0
-segment .text
-global main
-extern ExitProcess
-extern printf
+## 🔧 Parte 1 — Código en Ensamblador NASM
+
+### 🧩 a) Desglose del Código
+
+```asm
+bits 64                  ; Modo 64 bits
+default rel              ; Direccionamiento relativo por defecto
+
+segment .data            ; Sección de datos inicializados
+msg db "hola mundo!", 0x0D, 0x0A, 0  ; Cadena + CR + LF + NULL
+
+segment .text            ; Sección de código ejecutable
+global main              ; Punto de entrada visible externamente
+extern ExitProcess       ; API de salida de Windows
+extern printf            ; Función de impresión estándar
+
 main:
-    push rbp
-    mov rbp, rsp
-    sub rsp, 32
-    lea rcx, [msg]
-    call printf
-    xor rax, rax
-    call ExitProcess
+    push rbp             ; Guardar marco anterior
+    mov rbp, rsp         ; Crear nuevo marco de pila
+    sub rsp, 32          ; Reservar espacio (shadow space)
+    lea rcx, [msg]       ; Primer argumento para printf
+    call printf          ; Imprimir mensaje
+    xor rax, rax         ; Retorno 0
+    call ExitProcess     ; Finalizar programa
 
-    Instrucción/Directiva	Propósito Técnico
-bits 64	Especifica modo de direccionamiento para arquitectura AMD64
-default rel	Habilita direccionamiento relativo para posición independiente (PIC)
-segment .data	Delimita segmento de datos inicializados
-msg db ...	Reserva espacio en memoria para cadena ASCIIZ con secuencias de control CR/LF
-segment .text	Define segmento de código ejecutable
-global main	Exporta símbolo main para resolución de enlazador
-extern ExitProcess	Declara dependencia externa de la API Win32 (kernel32.dll)
-extern printf	Declara dependencia de función CRT (msvcrt.dll)
-push rbp	Preserva puntero de marco base en pila
-mov rbp, rsp	Establece nuevo marco de pila (stack frame)
-sub rsp, 32	Reserva shadow space (32 bytes) conforme convención calling x64
-lea rcx, [msg]	Carga dirección efectiva del mensaje en registro parámetro RCX
-call printf	Invoca función de biblioteca C mediante tabla de importación (IAT)
-xor rax, rax	Establece registro de retorno a cero (exit code SUCCESS)
-call ExitProcess	Termina proceso mediante llamada al sistema Windows API
-
-b. Proceso de Ensamblado con NASM
-
+⚙️ b) Ensamblado con NASM
+bash
+Copiar
+Editar
 nasm -fwin64 holamundo.asm
+nasm: Ejecuta el ensamblador
 
-Propósito: Traducción de código fuente a objeto relocalizable
+-fwin64: Salida compatible con Windows x64
 
-Parámetro -fwin64: Especifica formato COFF/PE para sistemas Win64
+holamundo.asm: Archivo fuente
 
-Salida: Genera archivo objeto (holamundo.obj) con:
+🛠️ Salida: holamundo.obj (código objeto sin enlaces)
 
-Código máquina en sección .text
 
-Símbolos exportados/importados
-
-Datos inicializados en sección .data
-
-Información de relocalización
-
-c. Proceso de Enlazado con GCC
-
+🔗 c) Enlace con GCC
+bash
+Copiar
+Editar
 gcc -m64 holamundo.obj -o holamundo.exe
+gcc: Enlazador y compilador de GNU
 
+-m64: Target de 64 bits
 
-Componente	Función
-gcc (frontend)	Invoca enlazador (ld) con configuración específica para Windows
--m64	Forza modo de 64 bits en todas las etapas
-holamundo.obj	Proporciona símbolos exportados y requerimientos de importación
--o holamundo.exe	Especifica nombre del ejecutable portable (PE32+ format)
-Resolución	Vincula con bibliotecas CRT y kernel32.dll mediante tablas de importación (IAT)
+holamundo.obj: Entrada generada por NASM
 
+-o holamundo.exe: Salida ejecutable
 
-d. Automatización mediante Script Batch
+🛠️ Dependencias resueltas automáticamente (msvcrt.dll, kernel32.dll)
 
+🧰 d) Script de Compilación .bat (Windows)
+bat
 
 @echo off
 if "%1"=="" (
-    echo Sintaxis: compilar [nombre_archivo_sin_extension]
-    echo Ejemplo: compilar programa
+    echo Uso: compilar [archivo_sin_extension]
+    echo Ejemplo: compilar holamundo
+    pause
     exit /b 1
 )
 
-nasm -fwin64 %1.asm || goto :error
-gcc -m64 %1.obj -o %1.exe || goto :error
+echo Ensamblando %1.asm...
+nasm -fwin64 %1.asm
+if errorlevel 1 (
+    echo Error en ensamblado
+    pause
+    exit /b 1
+)
 
-echo Compilacion exitosa: %1.exe
-exit /b 0
+echo Enlazando %1.obj...
+gcc -m64 %1.obj -o %1.exe
+if errorlevel 1 (
+    echo Error en enlace
+    pause
+    exit /b 1
+)
 
-:error
-echo Error en etapa de compilacion
-exit /b 1
-
-Características de Implementación:
-
-Validación de parámetros obligatorios
-
-Manejo de errores por etapas con errorlevel
-
-Sintaxis POSIX-compatible (|| operador)
-
-Mensajes de estado contextualizados
-
-Retorno de códigos de error estándar
-
-Parte 2: Análisis de Binario Compilado desde C
-a. Estructura del Programa holaenc.c
+echo EXE generado: %1.exe
+pause
 
 
 
-#include <conio.h>  // Funciones de consola específicas
-#include <stdio.h>  // E/S estándar
+📌 Uso:
+
+Guardar como: compilar.bat
+
+Ejecutar: compilar nombre_archivo
+
+Resultado: nombre_archivo.exe en la misma carpeta
+
+
+💻 Parte 2 — Código en Lenguaje C
+🧩 a) Estructura del Archivo holaenc.c
+
+
+#include <conio.h>     // Entrada directa (getch)
+#include <stdio.h>     // Entrada/salida (printf)
 
 int main() {
-    printf("Hola mundo.");  // Salida formateada
-    getch();                // Espera entrada silenciosa
-    return 0;               // Exit code SUCCESS
+    printf("Hola mundo.");
+    getch();           // Espera una tecla (sin eco)
+    return 0;
 }
 
 
-Elemento	Función Técnica
-#include <conio.h>	Provee acceso a getch() (no estándar)
-printf()	Implementa buffering de salida mediante stdout
-getch()	Lee carácter directamente de teclado sin eco (unbuffered input)
-return 0	Cumple con convención de retorno de proceso ISO C
+
+#include <conio.h>: Entrada directa (modo consola)
+
+#include <stdio.h>: Funciones estándar
+
+main: Punto de entrada
+
+printf: Salida a consola
+
+getch: Pausa ejecución
+
+return 0: Finalización exitosa
+
+🖥️ b) Ejecución del Programa Compilado (Paso 8)
+
+📋 Proceso:
+
+Carga de holaenc.exe por el sistema operativo
+
+Ejecución de main()
+
+Salida: "Hola mundo." en consola
+
+getch(): Espera interacción del usuario
+
+Retorno al shell al presionar una tecla
+
+🧠 c) Desensamblado con ndisasm (Paso 9)
+
+ndisasm holaenc.exe > holaenc.asm
 
 
+📋 Análisis:
 
-> holaenc.exe
+ndisasm: Desensamblador incluido con NASM
 
+Entrada: holaenc.exe (binario compilado)
 
-Fases de Ejecución:
+Salida: holaenc.asm (código ensamblador)
 
-Carga de Dependencias:
+Objetivo:
 
-Resolución de IAT (msvcrt.dll, kernel32.dll)
+Ver instrucciones generadas por el compilador
 
-Inicialización de CRT (tabla de vectores)
+Inspeccionar llamadas a funciones estándar (printf, getch)
 
-Flujo de Programa:
-
-printf: Escribe en buffer de salida (stdout)
-
-fflush(stdout): Implícito al llamar getch()
-
-getch: Bloquea ejecución esperando scancode
-
-Terminación Controlada:
-
-Liberación de recursos manejadores
-
-Retorno al SO con código 0 (ExitProcess)
-
-c. Ingeniería Inversa con NDISASM
-
-
-ndisasm -b 64 holaenc.exe > holaenc.asm
-
-
-
-
-Aspectos Revelados en el Desensamblado:
-
-Cabecera PE:
-
-Punto de entrada real (≠ main)
-
-Secciones ejecutables (.text)
-
-Código de Inicialización CRT:
-
-Setup de entorno
-
-Registro de handlers
-
-Llamadas a Sistema:
-
-WriteFile (implementación de printf)
-
-ReadConsoleInput (implementación de getch)
-
-Offsets de Memoria:
-
-Direcciones relativas (RIP-relative)
-
-Tablas de saltos (jump tables)
-
-Limitaciones del Desensamblado:
-
-Pérdida de metadatos de símbolos
-
-Dificultad para reconstruir estructuras de control
-
-Código de bibliotecas sin diferenciar
+Analizar estructuras PE internas (Windows Portable Executable)
